@@ -1,211 +1,276 @@
 // frontend/src/pages/ConsultantProfile.jsx
-import { useState } from "react";
-import { db, storage } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { db } from "../firebase";
+import { motion } from "framer-motion";
 
 export default function ConsultantProfile() {
-  const [form, setForm] = useState({
-    name: "",
-    bio: "",
-    expertise: "",
-    availability: "",
-    image: null,
-  });
-  const [uploading, setUploading] = useState(false);
+  const { id } = useParams();
   const navigate = useNavigate();
+  const [consultant, setConsultant] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [updatedData, setUpdatedData] = useState({
+    name: "",
+    specialization: "",
+    experience: "",
+    image: "",
+  });
 
-  // Handle input changes
-  const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    if (name === "image" && files[0]) {
-      setForm({ ...form, image: files[0] });
-    } else {
-      setForm({ ...form, [name]: value });
-    }
-  };
-
-  // Handle form submit
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      setUploading(true);
-      let imageUrl = "";
-
-      // Upload image to Firebase Storage
-      if (form.image) {
-        const imageRef = ref(storage, `consultants/${form.image.name}`);
-        await uploadBytes(imageRef, form.image);
-        imageUrl = await getDownloadURL(imageRef);
+  useEffect(() => {
+    const fetchConsultant = async () => {
+      try {
+        const docRef = doc(db, "consultants", id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setConsultant(docSnap.data());
+          setUpdatedData(docSnap.data());
+        } else {
+          console.error("No such consultant!");
+        }
+      } catch (error) {
+        console.error("Error fetching consultant:", error);
       }
+    };
+    fetchConsultant();
+  }, [id]);
 
-      // Save consultant data to Firestore
-      await addDoc(collection(db, "consultants"), {
-        name: form.name,
-        bio: form.bio,
-        expertise: form.expertise.split(",").map((s) => s.trim()),
-        availability: form.availability,
-        image: imageUrl,
-      });
-
-      alert("✅ Consultant profile created successfully!");
-      setForm({
-        name: "",
-        bio: "",
-        expertise: "",
-        availability: "",
-        image: null,
-      });
-      navigate("/dashboard");
+  const handleUpdate = async () => {
+    try {
+      const docRef = doc(db, "consultants", id);
+      await updateDoc(docRef, updatedData);
+      alert("✅ Consultant updated successfully!");
+      setConsultant(updatedData);
+      setIsEditing(false);
     } catch (error) {
-      console.error("Error adding consultant profile:", error);
-      alert("❌ Failed to add consultant. Try again!");
-    } finally {
-      setUploading(false);
+      console.error("Error updating consultant:", error);
     }
   };
+
+  if (!consultant)
+    return (
+      <div style={styles.wrapper}>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8 }}
+          style={styles.loading}
+        >
+          Loading consultant details...
+        </motion.p>
+      </div>
+    );
 
   return (
     <div style={styles.wrapper}>
-      <form style={styles.card} onSubmit={handleSubmit}>
-        <h2 style={styles.title}>🧠 Consultant Profile</h2>
-        <p style={styles.subtitle}>Add your professional details</p>
-
-        <input
-          type="text"
-          name="name"
-          placeholder="Full Name"
-          value={form.name}
-          onChange={handleChange}
-          style={styles.input}
-          required
+      <motion.div
+        className="consultant-card"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        style={styles.card}
+      >
+        <motion.img
+          src={
+            consultant.image ||
+            "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+          }
+          alt={consultant.name}
+          style={styles.image}
+          whileHover={{ scale: 1.05 }}
+          transition={{ duration: 0.3 }}
         />
 
-        <textarea
-          name="bio"
-          placeholder="Short Bio"
-          value={form.bio}
-          onChange={handleChange}
-          rows="3"
-          style={styles.textarea}
-          required
-        ></textarea>
-
-        <input
-          type="text"
-          name="expertise"
-          placeholder="Expertise (comma-separated)"
-          value={form.expertise}
-          onChange={handleChange}
-          style={styles.input}
-          required
-        />
-
-        <input
-          type="text"
-          name="availability"
-          placeholder="Availability (e.g., Mon–Fri 10 AM–5 PM)"
-          value={form.availability}
-          onChange={handleChange}
-          style={styles.input}
-          required
-        />
-
-        <input
-          type="file"
-          name="image"
-          accept="image/*"
-          onChange={handleChange}
-          style={styles.fileInput}
-        />
-
-        <button type="submit" style={styles.submitBtn} disabled={uploading}>
-          {uploading ? "Uploading..." : "Save Profile"}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => navigate("/dashboard")}
-          style={styles.backBtn}
+        <motion.h2
+          style={styles.title}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
         >
-          ⬅ Back to Dashboard
-        </button>
-      </form>
+          {consultant.name}
+        </motion.h2>
+
+        {isEditing ? (
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            style={styles.form}
+          >
+            <input
+              type="text"
+              value={updatedData.name}
+              onChange={(e) =>
+                setUpdatedData({ ...updatedData, name: e.target.value })
+              }
+              placeholder="Name"
+            />
+            <input
+              type="text"
+              value={updatedData.specialization}
+              onChange={(e) =>
+                setUpdatedData({
+                  ...updatedData,
+                  specialization: e.target.value,
+                })
+              }
+              placeholder="Specialization"
+            />
+            <input
+              type="text"
+              value={updatedData.experience}
+              onChange={(e) =>
+                setUpdatedData({
+                  ...updatedData,
+                  experience: e.target.value,
+                })
+              }
+              placeholder="Experience"
+            />
+            <input
+              type="text"
+              value={updatedData.image}
+              onChange={(e) =>
+                setUpdatedData({ ...updatedData, image: e.target.value })
+              }
+              placeholder="Image URL"
+            />
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              style={styles.saveBtn}
+              onClick={handleUpdate}
+            >
+              💾 Save Changes
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              style={styles.cancelBtn}
+              onClick={() => setIsEditing(false)}
+            >
+              ❌ Cancel
+            </motion.button>
+          </motion.div>
+        ) : (
+          <>
+            <motion.p
+              style={styles.text}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              <strong>Specialization:</strong> {consultant.specialization}
+            </motion.p>
+
+            <motion.p
+              style={styles.text}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+            >
+              <strong>Experience:</strong> {consultant.experience}
+            </motion.p>
+
+            <motion.div
+              style={styles.actions}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+            >
+              <motion.button
+                whileHover={{ scale: 1.05, backgroundColor: "#00e0ff" }}
+                style={styles.editBtn}
+                onClick={() => setIsEditing(true)}
+              >
+                ✏️ Edit
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.05, backgroundColor: "#ff6b6b" }}
+                style={styles.backBtn}
+                onClick={() => navigate("/consultants")}
+              >
+                ⬅ Back
+              </motion.button>
+            </motion.div>
+          </>
+        )}
+      </motion.div>
     </div>
   );
 }
 
-// 🎨 Styling
 const styles = {
   wrapper: {
     height: "100vh",
     width: "100vw",
+    background: "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    background: "linear-gradient(135deg, #74ebd5, #9face6)",
     fontFamily: "'Poppins', sans-serif",
   },
   card: {
-    backgroundColor: "rgba(255,255,255,0.25)",
-    backdropFilter: "blur(15px)",
-    borderRadius: "16px",
-    padding: "2rem 2.5rem",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+    background: "rgba(255,255,255,0.25)",
+    backdropFilter: "blur(10px)",
+    borderRadius: "20px",
+    padding: "2rem",
     width: "90%",
-    maxWidth: "480px",
+    maxWidth: "450px",
     textAlign: "center",
     color: "#fff",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
   },
-  title: {
-    fontSize: "1.8rem",
-    fontWeight: "600",
-    marginBottom: "0.5rem",
-  },
-  subtitle: {
-    fontSize: "1rem",
-    color: "rgba(255,255,255,0.9)",
-    marginBottom: "1.5rem",
-  },
-  input: {
-    padding: "0.8rem",
-    borderRadius: "8px",
-    border: "none",
-    outline: "none",
+  image: {
+    width: "110px",
+    height: "110px",
+    borderRadius: "50%",
     marginBottom: "1rem",
-    width: "100%",
+    border: "3px solid rgba(255,255,255,0.5)",
   },
-  textarea: {
-    padding: "0.8rem",
-    borderRadius: "8px",
+  title: { fontSize: "1.8rem", fontWeight: "bold", marginBottom: "1rem" },
+  text: { fontSize: "1rem", margin: "0.5rem 0" },
+  editBtn: {
+    background: "#00c9ff",
     border: "none",
-    outline: "none",
-    marginBottom: "1rem",
-    resize: "none",
-    width: "100%",
-  },
-  fileInput: {
+    padding: "0.7rem 1.2rem",
     color: "#fff",
-    marginBottom: "1rem",
-  },
-  submitBtn: {
-    backgroundColor: "#007bff",
-    color: "white",
-    border: "none",
     borderRadius: "8px",
-    padding: "0.8rem 1.5rem",
-    fontWeight: "bold",
     cursor: "pointer",
-    transition: "0.3s",
-    marginBottom: "1rem",
+    fontWeight: "600",
   },
   backBtn: {
-    backgroundColor: "#dc3545",
+    background: "#ff4b5c",
+    border: "none",
+    padding: "0.7rem 1.2rem",
+    color: "#fff",
+    borderRadius: "8px",
+    cursor: "pointer",
+    marginLeft: "0.7rem",
+    fontWeight: "600",
+  },
+  form: { display: "flex", flexDirection: "column", gap: "0.7rem", marginTop: "1rem" },
+  saveBtn: {
+    background: "#28a745",
     color: "white",
     border: "none",
     borderRadius: "8px",
-    padding: "0.8rem 1.5rem",
+    padding: "0.7rem",
     cursor: "pointer",
+    fontWeight: "600",
   },
+  cancelBtn: {
+    background: "#dc3545",
+    color: "white",
+    border: "none",
+    borderRadius: "8px",
+    padding: "0.7rem",
+    cursor: "pointer",
+    fontWeight: "600",
+  },
+  loading: { color: "#fff", fontSize: "1.3rem" },
+  actions: { marginTop: "1rem" },
 };

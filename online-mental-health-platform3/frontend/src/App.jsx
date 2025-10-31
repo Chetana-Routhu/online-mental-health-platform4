@@ -5,7 +5,9 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Consultants from "./pages/Consultants";
-import ConsultantProfile from "./pages/ConsultantProfile";
+import Book from "./pages/Book";
+import Chat from "./pages/Chat";
+import VideoCall from "./pages/VideoCall"; // 👈 Added for Week 4
 import ProtectedRoute from "./components/ProtectedRoute";
 import "./App.css";
 
@@ -13,11 +15,11 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* 🟢 Public Pages */}
+        {/* 🟢 Public Routes */}
         <Route path="/" element={<Signup />} />
         <Route path="/login" element={<Login />} />
 
-        {/* 🔐 Protected Pages (Only logged-in users can access) */}
+        {/* 🔒 Protected Routes */}
         <Route
           path="/dashboard"
           element={
@@ -46,15 +48,35 @@ function App() {
         />
 
         <Route
-          path="/consultant-profile"
+          path="/book/:id"
           element={
             <ProtectedRoute>
-              <ConsultantProfile />
+              <Book />
             </ProtectedRoute>
           }
         />
 
-        {/* 🌈 Fallback Route */}
+        {/* 💬 Chat Route */}
+        <Route
+          path="/chat/:id"
+          element={
+            <ProtectedRoute>
+              <Chat />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* 🎥 Video Consultation Route */}
+        <Route
+          path="/video/:id"
+          element={
+            <ProtectedRoute>
+              <VideoCall />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* 🚧 404 Fallback */}
         <Route
           path="*"
           element={
@@ -64,17 +86,31 @@ function App() {
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                background:
-                  "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
+                background: "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
                 color: "white",
                 fontSize: "1.5rem",
                 fontFamily: "'Poppins', sans-serif",
+                flexDirection: "column",
+                textAlign: "center",
               }}
             >
-              <div>
-                <h2>🚧 404 - Page Not Found</h2>
-                <p>Please check your URL or go back to Dashboard.</p>
-              </div>
+              <h2>🚧 404 - Page Not Found</h2>
+              <p>Please check your URL or go back to the Dashboard.</p>
+              <button
+                onClick={() => (window.location.href = "/dashboard")}
+                style={{
+                  marginTop: "1rem",
+                  background: "#00c9ff",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "0.6rem 1.2rem",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                ⬅ Go Back to Dashboard
+              </button>
             </div>
           }
         />
